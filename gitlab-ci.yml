@@ -1,0 +1,37 @@
+image: openjdk:11-stretch
+
+stages:
+  - build
+  - docker-build
+
+before_script:
+  - echo "Start CI/CD"
+
+build:
+  stage: build
+  script:
+    - chmod +x ./gradlew
+    - ./gradlew bootJar # 프로젝트에_맞게_수정
+  artifacts:
+    paths:
+      - build/libs/practice-0.0.1-SNAPSHOT.jar # 프로젝트에_맞게_수정
+    expire_in: 1 week
+  only:
+    - docker-ci # 프로젝트에_맞게_수정
+
+docker-build:
+  image: docker:latest
+  stage: docker-build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker pull $CI_REGISTRY_IMAGE:latest || true
+    - docker build --cache-from $CI_REGISTRY_IMAGE:latest --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:latest .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - docker-ci # 프로젝트에_맞게_수정
+after_script:
+  - echo "End CI/CD"
